@@ -1,4 +1,4 @@
-import { ConflictException, HttpStatus, Inject, Injectable, InternalServerErrorException, Post } from '@nestjs/common';
+import { ConflictException, HttpStatus, Inject, Injectable, InternalServerErrorException, NotFoundException, Post, UnauthorizedException } from '@nestjs/common';
 import { UserService } from 'src/user/user.service';
 import { UserCredentialDto } from './dto/credential.dto';
 import { hash, compare } from "bcryptjs"
@@ -27,6 +27,26 @@ export class AuthService {
         }
 
         return HttpStatus.CREATED;
+    }
+
+    async login(userCredentials: UserCredentialDto){
+        //Validamos si la cuenta existe
+        const user = await this.userService.findByEmail(userCredentials.email);
+        if(!user){
+            throw new UnauthorizedException();
+        }
+
+        //Validamos si la contraseña es compatible
+        const validatePassword = this.comparePassword(userCredentials.password, user.password);
+        if(!validatePassword){
+            throw new UnauthorizedException();
+        }
+
+        return HttpStatus.ACCEPTED;
+    }
+
+    comparePassword(userPassword: string, userDbPassword:string){
+        return compare(userDbPassword, userPassword)
     }
     
 }
