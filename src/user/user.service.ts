@@ -5,6 +5,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { User } from './entities/user.entity';
 import { hash } from 'bcryptjs';
+import e from 'express';
 
 @Injectable()
 export class UserService {
@@ -12,6 +13,7 @@ export class UserService {
   constructor(
     @InjectModel(User.name) private readonly userModel: Model<User>,
   ){}
+  
 
   async create(createUserDto: CreateUserDto) {
 
@@ -23,13 +25,10 @@ export class UserService {
 
     createUserDto.password = await hash(password, 10);
     
-    const user  = await this.userModel.create(createUserDto);
-    if(user == null){
-      throw new InternalServerErrorException();
-    }
-  
-    return HttpStatus.CREATED;
+    return this.userModel.create(createUserDto);
   }
+
+
 
   findAll() {
     return `This action returns all user`;
@@ -45,5 +44,13 @@ export class UserService {
 
   remove(id: number) {
     return `This action removes a #${id} user`;
+  }
+  
+  //-----
+  
+  findByEmail(email: string){
+    return this.userModel.findOne({
+      email: email
+    });
   }
 }

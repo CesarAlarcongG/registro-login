@@ -9,8 +9,9 @@ export class AuthController {
         @Inject() private readonly userService: UserService, 
     ){}
 
-    @Post()
+    @Post("register")
     userRegister(@Body() createUserDto: CreateUserDto){
         this.userService.create(createUserDto);
     }
+    
 }
