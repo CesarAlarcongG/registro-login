@@ -1,6 +1,5 @@
 import {
   ConflictException,
-  Inject,
   Injectable,
   InternalServerErrorException,
   UnauthorizedException,
@@ -13,8 +12,8 @@ import { UserDocument } from 'src/user/entities/user.entity';
 @Injectable()
 export class AuthService {
   constructor(
-    @Inject() private readonly userService: UserService,
-    @Inject() private readonly jwtService: JwtService,
+    private readonly userService: UserService,
+    private readonly jwtService: JwtService,
   ) {}
 
   async register(credentialUser: UserCredentialDto) {
@@ -41,7 +40,9 @@ export class AuthService {
   async login(userCredentials: UserCredentialDto) {
     const user = await this.userService.findByEmail(userCredentials.email);
     if (!user) {
-      throw new UnauthorizedException();
+      throw new UnauthorizedException(
+        'No hay un usuario registrado con este email',
+      );
     }
 
     const validatePassword = await this.comparePassword(
@@ -50,7 +51,7 @@ export class AuthService {
     );
 
     if (!validatePassword) {
-      throw new UnauthorizedException();
+      throw new UnauthorizedException('Contraseña incorrecta');
     }
 
     return this.generateToken(user);
