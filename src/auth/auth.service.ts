@@ -1,52 +1,74 @@
-import { ConflictException, HttpStatus, Inject, Injectable, InternalServerErrorException, NotFoundException, Post, UnauthorizedException } from '@nestjs/common';
+import {
+  ConflictException,
+  Inject,
+  Injectable,
+  InternalServerErrorException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { UserService } from 'src/user/user.service';
 import { UserCredentialDto } from './dto/credential.dto';
-import { hash, compare } from "bcryptjs"
+import { hash, compare } from 'bcryptjs';
+import { JwtService } from '@nestjs/jwt';
+import { UserDocument } from 'src/user/entities/user.entity';
 @Injectable()
 export class AuthService {
-    
-    constructor(
-        @Inject() private readonly userService: UserService,
-    ){}
+  constructor(
+    @Inject() private readonly userService: UserService,
+    @Inject() private readonly jwtService: JwtService,
+  ) {}
 
-    async register(credentialUser: UserCredentialDto){
-        //validar si el email ya fue registrado
-        const validateEmail = this.userService.findByEmail(credentialUser.email);
+  async register(credentialUser: UserCredentialDto) {
+    //validar si el email ya fue registrado
+    const validateEmail = await this.userService.findByEmail(
+      credentialUser.email,
+    );
 
-        if(!validateEmail){
-            throw new ConflictException();
-        }
-
-        //Encriptar contraseña
-        credentialUser.password = await hash(credentialUser.password, 10);
-
-        //Registrar en la BD
-        const userRegisted = this.userService.create({...credentialUser});
-        if(!userRegisted){
-            throw new InternalServerErrorException();
-        }
-
-        return HttpStatus.CREATED;
+    if (validateEmail) {
+      throw new ConflictException();
     }
 
-    async login(userCredentials: UserCredentialDto){
-        //Validamos si la cuenta existe
-        const user = await this.userService.findByEmail(userCredentials.email);
-        if(!user){
-            throw new UnauthorizedException();
-        }
+    //Encriptar contraseña
+    credentialUser.password = await hash(credentialUser.password, 10);
 
-        //Validamos si la contraseña es compatible
-        const validatePassword = this.comparePassword(userCredentials.password, user.password);
-        if(!validatePassword){
-            throw new UnauthorizedException();
-        }
+    //Registrar en la BD
+    const userRegisted = await this.userService.create({ ...credentialUser });
+    if (!userRegisted) {
+      throw new InternalServerErrorException();
+    }
+    return this.generateToken(userRegisted);
+  }
 
-        return HttpStatus.ACCEPTED;
+  async login(userCredentials: UserCredentialDto) {
+    const user = await this.userService.findByEmail(userCredentials.email);
+    if (!user) {
+      throw new UnauthorizedException();
     }
 
-    comparePassword(userPassword: string, userDbPassword:string){
-        return compare(userDbPassword, userPassword)
+    const validatePassword = await this.comparePassword(
+      userCredentials.password,
+      user.password,
+    );
+
+    if (!validatePassword) {
+      throw new UnauthorizedException();
     }
-    
+
+    return this.generateToken(user);
+  }
+
+  generateToken(user: UserDocument) {
+    const payload = {
+      sub: user._id,
+      email: user.email,
+      firtsName: user.firstName,
+    };
+
+    return {
+      acces_token: this.jwtService.sign(payload),
+    };
+  }
+
+  comparePassword(userPassword: string, userDbPassword: string) {
+    return compare(userDbPassword, userPassword);
+  }
 }
